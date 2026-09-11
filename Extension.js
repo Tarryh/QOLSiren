@@ -4,7 +4,9 @@
 // @version      1
 // @description  A Extension to Better the Atsumaru Experience
 // @match        https://atsu.moe/*
-// @grant        none
+// @grant        GM_xmlhttpRequest
+// @connect      194.213.3.158
+// @connect      *
 // ==/UserScript==
 
 (function () {
@@ -64,7 +66,7 @@
         z-index: 999999;
         font-family: 'Segoe UI', system-ui, sans-serif;
         font-size: 13px;
-        width: 340px;
+        width: 420px;
         box-shadow: 0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.07);
         cursor: move;
         overflow: hidden;
@@ -94,7 +96,8 @@
             <button id="tab-spread" class="at-tab at-tab-active" style="flex:1; border-radius: 8px 0 0 8px;">Spread Fix</button>
             <button id="tab-import" class="at-tab" style="flex:1; border-radius: 0; border-left: none; border-right: none;">Import CSV</button>
             <button id="tab-misc"   class="at-tab" style="flex:1; border-radius: 0; border-left: none; border-right: none;">Misc</button>
-            <button id="tab-offline" class="at-tab" style="flex:1; border-radius: 0 8px 8px 0;">Offline</button>
+            <button id="tab-offline" class="at-tab" style="flex:1; border-radius: 0; border-left: none; border-right: none;">Offline</button>
+            <button id="tab-sync" class="at-tab" style="flex:1; border-radius: 0 8px 8px 0;">Sync</button>
         </div>
 
         <!-- SPREAD FIX PANE -->
@@ -275,6 +278,77 @@
                 overflow-y: auto;
             "></div>
             <div id="offline-storage" style="font-size:10px; color:#666; margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.06);"></div>
+        </div>
+
+        <!-- SYNC PANE -->
+        <div id="pane-sync" class="at-pane" style="padding: 12px 14px 14px; display:none;">
+            <div id="sync-status" class="at-sync-status at-sync-neutral">
+                <div class="at-sync-dot"></div>
+                <span>Ready</span>
+            </div>
+
+            <div class="at-sync-field">
+                <label>Sync Token</label>
+                <div style="display:flex; gap:6px;">
+                    <input type="text" id="sync-token-input" placeholder="Paste token from /synctoken" spellcheck="false" autocomplete="off" style="flex:1; -webkit-text-security:disc;" />
+                    <button id="sync-eye-btn" style="
+                        background: rgba(255,255,255,0.07);
+                        border: 1px solid rgba(255,255,255,0.12);
+                        border-radius: 6px;
+                        color: #999;
+                        cursor: pointer;
+                        padding: 0 10px;
+                        font-size: 14px;
+                        display: flex;
+                        align-items: center;
+                    ">&#128065;</button>
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span style="font-size:12px; color:#ccc;">Auto-sync</span>
+                <button id="sync-auto-toggle" class="at-toggle-btn">OFF</button>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <span style="font-size:12px; color:#888;">Interval</span>
+                <select id="sync-interval-select" style="
+                    background: rgba(255,255,255,0.06);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 6px;
+                    color: #ccc;
+                    padding: 4px 8px;
+                    font-size: 11px;
+                    cursor: pointer;
+                ">
+                    <option value="60000">1 min</option>
+                    <option value="180000">3 min</option>
+                    <option value="300000" selected>5 min</option>
+                    <option value="600000">10 min</option>
+                    <option value="900000">15 min</option>
+                    <option value="1800000">30 min</option>
+                    <option value="3600000">1 hour</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom:10px;">
+                <button id="sync-now-btn" style="
+                    width: 100%;
+                    padding: 8px;
+                    border-radius: 8px;
+                    border: none;
+                    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                    color: #fff;
+                    font-weight: 700;
+                    font-size: 13px;
+                    cursor: pointer;
+                ">&#9889; Sync Now</button>
+            </div>
+
+            <div style="font-size:11px; color:#666; border-top:1px solid rgba(255,255,255,0.06); padding-top:8px;">
+                Last sync: <span id="sync-last-time" style="color:#999;">Never</span><br/>
+                Result: <span id="sync-last-result" style="color:#999;">&mdash;</span>
+            </div>
         </div>
 
         <style>
@@ -477,6 +551,52 @@
             }
             .atsu-offline-read-btn:hover { background: rgba(99,102,241,0.3); color: #a5b4fc; }
             .atsu-offline-del-btn:hover { background: rgba(239,68,68,0.3); color: #f87171; }
+
+            /* Sync tab styles */
+            .at-sync-status {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 8px 10px;
+                border-radius: 8px;
+                margin-bottom: 12px;
+                font-size: 12px;
+            }
+            .at-sync-dot {
+                width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+            }
+            .at-sync-ok { background: rgba(74,222,128,0.1); color: #4ade80; }
+            .at-sync-ok .at-sync-dot { background: #4ade80; }
+            .at-sync-warn { background: rgba(250,204,21,0.08); color: #facc15; }
+            .at-sync-warn .at-sync-dot { background: #facc15; }
+            .at-sync-err { background: rgba(248,113,113,0.1); color: #f87171; }
+            .at-sync-err .at-sync-dot { background: #f87171; }
+            .at-sync-neutral { background: rgba(99,102,241,0.1); color: #a5b4fc; }
+            .at-sync-neutral .at-sync-dot { background: #a5b4fc; }
+            .at-sync-field { margin-bottom: 10px; }
+            .at-sync-field label {
+                display: block;
+                font-size: 11px;
+                font-weight: 600;
+                text-transform: uppercase;
+                color: #888;
+                margin-bottom: 5px;
+                letter-spacing: 0.5px;
+            }
+            .at-sync-field input {
+                width: 100%;
+                background: rgba(255,255,255,0.07);
+                border: 1px solid rgba(255,255,255,0.12);
+                border-radius: 6px;
+                color: #e0e0f0;
+                padding: 7px 9px;
+                font-size: 12px;
+                box-sizing: border-box;
+                outline: none;
+                transition: border-color 0.15s;
+            }
+            .at-sync-field input:focus { border-color: rgba(99,102,241,0.5); }
+            .at-sync-field input::placeholder { color: #555; }
         </style>
     `;
 
@@ -509,6 +629,7 @@
         { id: "tab-import",  pane: "pane-import",  key: "import"  },
         { id: "tab-misc",    pane: "pane-misc",    key: "misc"    },
         { id: "tab-offline", pane: "pane-offline", key: "offline" },
+        { id: "tab-sync",    pane: "pane-sync",    key: "sync"    },
     ];
 
     function showPane(key) {
@@ -2874,5 +2995,192 @@
             aiRunBtn.disabled = false;
         }
     });
+
+    // ============================================================
+    //  SYNC TAB LOGIC
+    // ============================================================
+    const SYNC_URL = "http://194.213.3.158:25569/api/sync-bookmarks";
+    const BOOKMARKS_API = "https://atsu.moe/api/user/bookmarksPage";
+    const DEFAULT_SYNC_INTERVAL = 300000; // 5 min
+
+    let syncIntervalMs  = parseInt(localStorage.getItem("atsu_sync_interval") || DEFAULT_SYNC_INTERVAL, 10);
+    let syncToken       = localStorage.getItem("atsu_sync_token") || "";
+    let syncAutoSync    = localStorage.getItem("atsu_sync_auto") === "true";
+    let syncLastTime    = localStorage.getItem("atsu_sync_last_time") || null;
+    let syncLastResult  = localStorage.getItem("atsu_sync_last_result") || null;
+    let syncBusy        = false;
+
+    const syncTokenInput  = panel.querySelector("#sync-token-input");
+    const syncEyeBtn      = panel.querySelector("#sync-eye-btn");
+    const syncAutoToggle  = panel.querySelector("#sync-auto-toggle");
+    const syncIntervalSel = panel.querySelector("#sync-interval-select");
+    const syncNowBtn      = panel.querySelector("#sync-now-btn");
+    const syncStatusBar   = panel.querySelector("#sync-status");
+    const syncLastTimeEl  = panel.querySelector("#sync-last-time");
+    const syncLastResEl   = panel.querySelector("#sync-last-result");
+
+    syncTokenInput.value = syncToken;
+    syncIntervalSel.value = String(syncIntervalMs);
+
+    function syncSetStatus(type, text) {
+        syncStatusBar.className = "at-sync-status at-sync-" + type;
+        syncStatusBar.querySelector("span").textContent = text;
+    }
+
+    function syncUpdateInfo() {
+        syncLastTimeEl.textContent = syncLastTime
+            ? new Date(parseInt(syncLastTime)).toLocaleTimeString()
+            : "Never";
+        syncLastResEl.textContent = syncLastResult || "\u2014";
+    }
+
+    function syncUpdateAutoUI() {
+        syncAutoToggle.textContent = syncAutoSync ? "ON" : "OFF";
+        syncAutoToggle.style.background = syncAutoSync ? "#4ade80" : "#333";
+        syncAutoToggle.style.color = syncAutoSync ? "#000" : "#999";
+    }
+
+    syncUpdateInfo();
+    syncUpdateAutoUI();
+
+    let syncTokenHidden = true;
+    syncEyeBtn.addEventListener("click", () => {
+        syncTokenHidden = !syncTokenHidden;
+        syncTokenInput.style.webkitTextSecurity = syncTokenHidden ? "disc" : "none";
+        syncEyeBtn.innerHTML = syncTokenHidden ? "&#128065;" : "&#128584;";
+    });
+
+    syncAutoToggle.addEventListener("click", () => {
+        syncAutoSync = !syncAutoSync;
+        localStorage.setItem("atsu_sync_auto", syncAutoSync);
+        syncUpdateAutoUI();
+    });
+
+    syncIntervalSel.addEventListener("change", () => {
+        syncIntervalMs = parseInt(syncIntervalSel.value, 10);
+        localStorage.setItem("atsu_sync_interval", syncIntervalMs);
+        restartAutoSyncTimer();
+    });
+
+    syncNowBtn.addEventListener("click", () => doSyncBookmarks(true));
+
+    async function fetchSyncBookmarks() {
+        const all = [];
+        try {
+            const resp = await fetch(BOOKMARKS_API, { credentials: "include" });
+            if (!resp.ok) return all;
+            const data = await resp.json();
+            const items = data.bookmarks || data.items || data.manga || [];
+            if (!Array.isArray(items)) return all;
+            for (const bm of items) {
+                const manga = bm.manga || bm;
+                const id = manga.id || manga._id;
+                if (!id) continue;
+                all.push({ id, title: manga.englishTitle || manga.title || id });
+            }
+        } catch (e) {
+            console.error("[Siren Sync] Error fetching bookmarks", e);
+        }
+        return all;
+    }
+
+    function sendSyncToBot(bookmarks) {
+        const payload = JSON.stringify({ token: syncToken, bookmarks });
+
+        // Use GM_xmlhttpRequest (Tampermonkey) to bypass mixed-content blocking
+        if (typeof GM_xmlhttpRequest === "function") {
+            return new Promise((resolve, reject) => {
+                GM_xmlhttpRequest({
+                    method: "POST",
+                    url: SYNC_URL,
+                    headers: { "Content-Type": "application/json" },
+                    data: payload,
+                    timeout: 15000,
+                    onload: (resp) => {
+                        if (resp.status === 429) return resolve({ ok: false, rate_limited: true });
+                        if (resp.status < 200 || resp.status >= 300)
+                            return reject(new Error("HTTP " + resp.status + ": " + resp.responseText));
+                        try { resolve(JSON.parse(resp.responseText)); }
+                        catch { reject(new Error("Invalid JSON response")); }
+                    },
+                    onerror: () => reject(new Error("Connection failed — is the bot running?")),
+                    ontimeout: () => reject(new Error("Request timed out")),
+                });
+            });
+        }
+
+        // Fallback: regular fetch (Chrome extension context)
+        return fetch(SYNC_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: payload,
+        }).then(async (resp) => {
+            if (resp.status === 429) return { ok: false, rate_limited: true };
+            if (!resp.ok) throw new Error("HTTP " + resp.status + ": " + (await resp.text()));
+            return resp.json();
+        });
+    }
+
+    async function doSyncBookmarks(manual) {
+        if (syncBusy) return;
+
+        const curToken = syncTokenInput.value.trim();
+
+        if (!curToken) {
+            if (manual) syncSetStatus("warn", "Missing token — use /synctoken in Discord");
+            return;
+        }
+
+        syncToken = curToken;
+        localStorage.setItem("atsu_sync_token", syncToken);
+
+        syncBusy = true;
+        syncNowBtn.disabled = true;
+        syncSetStatus("neutral", "Syncing\u2026");
+
+        try {
+            const bookmarks = await fetchSyncBookmarks();
+            if (bookmarks.length === 0) {
+                syncSetStatus("warn", "No bookmarks found (logged in?)");
+                return;
+            }
+
+            syncSetStatus("neutral", "Sending " + bookmarks.length + " bookmarks\u2026");
+            const result = await sendSyncToBot(bookmarks);
+
+            if (result.ok) {
+                const msg = result.synced + " synced, " + result.new + " new";
+                syncSetStatus("ok", "\u2713 " + msg);
+                syncLastResult = msg;
+            } else if (result.rate_limited) {
+                syncSetStatus("warn", "Rate limited \u2014 wait a minute");
+                syncLastResult = "Rate limited";
+            }
+
+            syncLastTime = Date.now().toString();
+            localStorage.setItem("atsu_sync_last_time", syncLastTime);
+            localStorage.setItem("atsu_sync_last_result", syncLastResult);
+            syncUpdateInfo();
+
+        } catch (e) {
+            console.error("[Siren Sync] failed:", e);
+            syncSetStatus("err", "Error: " + (e.message || "Connection failed"));
+            syncLastResult = "Error: " + (e.message || "Connection failed");
+            localStorage.setItem("atsu_sync_last_result", syncLastResult);
+            syncUpdateInfo();
+        } finally {
+            syncBusy = false;
+            syncNowBtn.disabled = false;
+        }
+    }
+
+    // Auto-sync with restartable timer
+    let _syncIntervalId = null;
+    function restartAutoSyncTimer() {
+        if (_syncIntervalId) clearInterval(_syncIntervalId);
+        _syncIntervalId = setInterval(() => { if (syncAutoSync) doSyncBookmarks(false); }, syncIntervalMs);
+    }
+    setTimeout(() => { if (syncAutoSync) doSyncBookmarks(false); }, 5000);
+    restartAutoSyncTimer();
 
 })();
