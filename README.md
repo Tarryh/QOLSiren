@@ -10,3 +10,6 @@ Features:
 - Auto set to Reading
 - Quick Apply to List
 - Quick Mark Chapters as Read
+
+
+The ZIP file contains all of the data above zipped, the Extension.js file is among them
