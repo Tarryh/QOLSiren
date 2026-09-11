@@ -12,4 +12,4 @@ Features:
 - Quick Mark Chapters as Read
 
 
-The ZIP file contains all of the data above zipped, the Extension.js file is among them
+The ZIP file contains all of the data above zipped (without read.md), the Extension.js file is among them
