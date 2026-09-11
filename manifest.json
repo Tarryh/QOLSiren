@@ -1,0 +1,22 @@
+{
+    "manifest_version": 3, 
+    "name": "Siren",
+    "version": "1.0",
+    "icons": {
+        "128": "icons/128.png"
+    },
+
+    "description": "A Extension to Better the Atsumaru Experience",
+    "content_scripts": [
+        {
+            "matches": [
+                "https://atsu.moe/*"
+            ],
+            "js": [
+                "Extension.js"
+            ],
+            "world": "MAIN",
+            "run_at": "document_idle"
+        }
+    ]
+}
